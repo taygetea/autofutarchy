@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Repository
+
+This project is hosted on GitHub at: https://github.com/taygetea/autofutarchy
+
 ## Project Narrative
 
 We built a prediction market system from scratch, starting with a simple observation: an AI orchestrator (using simonw/llm) generated an impressively comprehensive but over-engineered specification for a "Multi-LLM Prediction Market Framework." Instead of implementing the complex microservices architecture it suggested, we took a pragmatic approach and built a working system in ~400 lines of Python.

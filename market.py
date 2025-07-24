@@ -370,6 +370,15 @@ class PredictionMarket:
             'amount_changed': amount
         }
     
+    def save_trade_comment(self, trade_id: str, reasoning: str, model_name: str = None,
+                          strategy: str = None, confidence: float = None, is_llm: bool = True):
+        """Save reasoning/comment for a trade"""
+        self.db.save_trade_comment(trade_id, reasoning, model_name, strategy, confidence, is_llm)
+    
+    def get_trades_with_comments(self, market_id: str = None, limit: int = 50):
+        """Get trades with their comments/reasoning"""
+        return self.db.load_trades_with_comments(market_id, limit)
+    
     def close(self):
         """Close database connection"""
         if hasattr(self, 'db'):

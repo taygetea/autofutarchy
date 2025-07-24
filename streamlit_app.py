@@ -224,6 +224,45 @@ with tab1:
                                 time.sleep(1)
                                 st.rerun()
                 
+                # Trade Feed
+                with st.expander("📜 Recent Trades", expanded=True):
+                    # Add a refresh button for this specific section
+                    col1, col2 = st.columns([10, 1])
+                    with col2:
+                        if st.button("🔄", key=f"refresh_trades_{market['id']}", help="Refresh trades"):
+                            st.rerun()
+                    
+                    trades = api_call("GET", f"/markets/{market['id']}/trades?limit=10")
+                    if trades:
+                        for trade in trades:
+                            icon = "🤖" if trade.get('is_llm_trader', False) else "👤"
+                            
+                            # Format timestamp
+                            timestamp = datetime.fromisoformat(trade['timestamp'].replace('Z', '+00:00'))
+                            time_str = timestamp.strftime("%H:%M:%S")
+                            
+                            # Trade summary line
+                            trade_msg = f"{icon} **{trade['username']}** bought {trade['shares']:.1f} {trade['side']} shares @ ${trade['price']:.3f}"
+                            st.write(trade_msg)
+                            
+                            # Show reasoning if available
+                            if trade.get('reasoning'):
+                                with st.container():
+                                    col1, col2 = st.columns([10, 1])
+                                    with col1:
+                                        st.caption(f"💭 {trade['reasoning']}")
+                                        if trade.get('confidence'):
+                                            conf_pct = int(trade['confidence'] * 100)
+                                            st.caption(f"Confidence: {conf_pct}% | Model: {trade.get('model_name', 'Unknown')} | Strategy: {trade.get('strategy', 'Unknown')}")
+                                    with col2:
+                                        st.caption(time_str)
+                            else:
+                                st.caption(f"🕐 {time_str}")
+                            
+                            st.markdown("---")
+                    else:
+                        st.info("No trades yet")
+                
                 st.divider()
     else:
         st.info("No markets available")
@@ -316,6 +355,44 @@ with tab4:
     
     st.info("🤖 Launch AI traders to analyze and trade on markets")
     
+    # Recent LLM trades section
+    with st.expander("📊 Recent LLM Trader Activity", expanded=True):
+        # Add refresh button
+        col1, col2 = st.columns([10, 1])
+        with col2:
+            if st.button("🔄", key="refresh_llm_activity", help="Refresh activity"):
+                st.rerun()
+        
+        recent_trades = api_call("GET", "/trades/recent?limit=20")
+        if recent_trades:
+            llm_trades = [t for t in recent_trades if t.get('is_llm_trader', False)]
+            if llm_trades:
+                for trade in llm_trades[:10]:  # Show last 10
+                    # Get market info for context
+                    market_id = trade['market_id']
+                    market = next((m for m in api_call("GET", "/markets") if m['id'] == market_id), None)
+                    market_q = market['question'][:50] + "..." if market and len(market['question']) > 50 else market['question'] if market else "Unknown"
+                    
+                    col1, col2, col3 = st.columns([3, 1, 1])
+                    with col1:
+                        st.write(f"🤖 **{trade['username']}** ({trade.get('strategy', 'unknown')})")
+                        st.caption(f"Market: {market_q}")
+                    with col2:
+                        st.write(f"{trade['shares']:.1f} {trade['side']} @ ${trade['price']:.3f}")
+                    with col3:
+                        timestamp = datetime.fromisoformat(trade['timestamp'].replace('Z', '+00:00'))
+                        st.caption(timestamp.strftime("%H:%M:%S"))
+                    
+                    if trade.get('reasoning'):
+                        st.caption(f"💭 {trade['reasoning']}")
+                    st.divider()
+            else:
+                st.info("No recent LLM trades")
+        else:
+            st.info("No trades yet")
+    
+    st.subheader("Launch New Traders")
+    
     # Select market for trading
     markets = api_call("GET", "/markets")
     if markets:
@@ -336,18 +413,33 @@ with tab4:
             enable_search = st.checkbox("Enable Web Search", value=True)
         
         if st.button("🚀 Launch LLM Traders", type="primary"):
-            st.info("Note: LLM traders would run via the Python script. Launch them with:")
-            if enable_search:
-                command = f"python llm_trader_with_search.py {selected_market} {num_traders} {rounds}"
-            else:
-                command = f"python llm_trader.py {selected_market} {num_traders} {rounds}"
-            st.code(command)
+            # Launch traders via API
+            launch_data = {
+                'market_id': selected_market,
+                'num_traders': num_traders,
+                'rounds': rounds,
+                'enable_search': enable_search
+            }
             
-            st.write("The traders will:")
-            st.write("- Analyze the market question")
-            st.write("- Search for relevant information" if enable_search else "- Use their training data")
-            st.write("- Make trading decisions")
-            st.write("- Move the market price")
+            result = api_call("POST", "/traders/launch", launch_data)
+            
+            if result:
+                st.success(f"✅ Launched {num_traders} traders for {rounds} round(s)")
+                
+                if enable_search:
+                    st.info("🔍 Web search enabled - traders will search for current information")
+                else:
+                    st.info("📚 Using training data only - no web search")
+                
+                st.write("The traders will:")
+                st.write("- Analyze the market question")
+                st.write("- Search for relevant information" if enable_search else "- Use their training data")
+                st.write("- Make trading decisions")
+                st.write("- Move the market price")
+                st.write("")
+                st.write("💡 **Tip**: Switch to the Markets tab to see trades appear in real-time!")
+            else:
+                st.error("Failed to launch traders")
 
 with tab5:
     st.header("👥 User Management")
@@ -580,11 +672,20 @@ with tab6:
     **Note:** Some advanced features (like direct pool manipulation) would require API modifications.
     """)
 
+# Auto-refresh controls in sidebar
+with st.sidebar:
+    st.divider()
+    st.subheader("🔄 Auto-Refresh")
+    auto_refresh = st.checkbox("Enable auto-refresh", value=False)
+    if auto_refresh:
+        refresh_rate = st.slider("Refresh interval (seconds)", 2, 10, 5)
+        st.caption(f"Refreshing every {refresh_rate}s")
+
 # Footer
 st.divider()
 st.caption("Built with Streamlit • Connected to Flask API • Data stored in SQLite")
 
-# Auto-refresh for live data (optional)
-# if st.checkbox("Auto-refresh (every 5 seconds)"):
-#     time.sleep(5)
-#     st.rerun()
+# Auto-refresh implementation
+if auto_refresh:
+    time.sleep(refresh_rate)
+    st.rerun()

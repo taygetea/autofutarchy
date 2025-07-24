@@ -72,6 +72,19 @@ class Database:
             )
         """)
         
+        # Trade comments/reasoning table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS trade_comments (
+                trade_id TEXT PRIMARY KEY,
+                reasoning TEXT,
+                model_name TEXT,
+                strategy TEXT,
+                confidence REAL,
+                is_llm_trader BOOLEAN DEFAULT FALSE,
+                FOREIGN KEY (trade_id) REFERENCES trades(id)
+            )
+        """)
+        
         # Metadata table for tracking next_id
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS metadata (
@@ -260,6 +273,92 @@ class Database:
                 timestamp=datetime.fromisoformat(row['timestamp'])
             )
             trades.append(trade)
+        
+        return trades
+    
+    def save_trade_comment(self, trade_id: str, reasoning: str, model_name: str = None, 
+                          strategy: str = None, confidence: float = None, is_llm: bool = True):
+        """Save trade reasoning/comment"""
+        cursor = self.conn.cursor()
+        cursor.execute("""
+            INSERT OR REPLACE INTO trade_comments 
+            (trade_id, reasoning, model_name, strategy, confidence, is_llm_trader)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, (
+            trade_id,
+            reasoning,
+            model_name,
+            strategy,
+            confidence,
+            is_llm
+        ))
+        self.conn.commit()
+    
+    def load_trade_comments(self, trade_id: str) -> Optional[dict]:
+        """Load comments for a specific trade"""
+        cursor = self.conn.cursor()
+        cursor.execute("SELECT * FROM trade_comments WHERE trade_id = ?", (trade_id,))
+        row = cursor.fetchone()
+        
+        if not row:
+            return None
+            
+        return {
+            'trade_id': row['trade_id'],
+            'reasoning': row['reasoning'],
+            'model_name': row['model_name'],
+            'strategy': row['strategy'],
+            'confidence': row['confidence'],
+            'is_llm_trader': bool(row['is_llm_trader'])
+        }
+    
+    def load_trades_with_comments(self, market_id: str = None, limit: int = 50) -> List[dict]:
+        """Load trades with their comments, optionally filtered by market"""
+        cursor = self.conn.cursor()
+        
+        if market_id:
+            query = """
+                SELECT t.*, tc.reasoning, tc.model_name, tc.strategy, tc.confidence, tc.is_llm_trader,
+                       u.username
+                FROM trades t
+                LEFT JOIN trade_comments tc ON t.id = tc.trade_id
+                LEFT JOIN users u ON t.user_id = u.id
+                WHERE t.market_id = ?
+                ORDER BY t.timestamp DESC
+                LIMIT ?
+            """
+            cursor.execute(query, (market_id, limit))
+        else:
+            query = """
+                SELECT t.*, tc.reasoning, tc.model_name, tc.strategy, tc.confidence, tc.is_llm_trader,
+                       u.username
+                FROM trades t
+                LEFT JOIN trade_comments tc ON t.id = tc.trade_id
+                LEFT JOIN users u ON t.user_id = u.id
+                ORDER BY t.timestamp DESC
+                LIMIT ?
+            """
+            cursor.execute(query, (limit,))
+        
+        trades = []
+        for row in cursor.fetchall():
+            trade_data = {
+                'id': row['id'],
+                'user_id': row['user_id'],
+                'username': row['username'],
+                'market_id': row['market_id'],
+                'side': row['side'],
+                'shares': row['shares'],
+                'cost': row['cost'],
+                'price': row['price'],
+                'timestamp': row['timestamp'],
+                'reasoning': row['reasoning'],
+                'model_name': row['model_name'],
+                'strategy': row['strategy'],
+                'confidence': row['confidence'],
+                'is_llm_trader': bool(row['is_llm_trader']) if row['is_llm_trader'] is not None else False
+            }
+            trades.append(trade_data)
         
         return trades
     

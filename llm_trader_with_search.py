@@ -173,7 +173,7 @@ Respond with a JSON object:
         
         return max(1, min(20, int(shares)))  # Cap at 20 shares max
     
-    def execute_trade(self, market_id, action, confidence):
+    def execute_trade(self, market_id, action, confidence, analysis=None):
         """Execute a trade based on analysis"""
         # Get current balance
         resp = requests.get(f"{BASE_URL}/users/{self.user_id}")
@@ -199,6 +199,16 @@ Respond with a JSON object:
             'shares': shares,
             'max_cost': balance * 0.9  # Don't spend everything
         }
+        
+        # Add reasoning if available
+        if analysis:
+            trade_data.update({
+                'reasoning': analysis.get('reasoning', ''),
+                'model_name': self.model_name,
+                'strategy': self.strategy,
+                'confidence': confidence,
+                'is_llm_trader': True
+            })
         
         resp = requests.post(f"{BASE_URL}/trades", json=trade_data)
         
@@ -239,7 +249,7 @@ Respond with a JSON object:
         # Execute trade if not HOLD
         if analysis['action'] != "HOLD" and analysis['confidence'] > 0.3:
             self.last_action = analysis['action']
-            self.execute_trade(market_id, analysis['action'], analysis['confidence'])
+            self.execute_trade(market_id, analysis['action'], analysis['confidence'], analysis)
         else:
             print(f"[{self.name}] Holding position")
 

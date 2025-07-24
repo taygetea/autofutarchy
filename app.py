@@ -142,6 +142,17 @@ def execute_trade():
             max_cost=data.get('max_cost')
         )
         
+        # Save reasoning/comment if provided
+        if 'reasoning' in data:
+            pm.save_trade_comment(
+                trade_id=trade.id,
+                reasoning=data['reasoning'],
+                model_name=data.get('model_name'),
+                strategy=data.get('strategy'),
+                confidence=data.get('confidence'),
+                is_llm=data.get('is_llm_trader', False)
+            )
+        
         # Get updated market info
         market_info = pm.get_market_info(data['market_id'])
         
@@ -156,6 +167,26 @@ def execute_trade():
             'new_no_price': market_info['no_price']
         }), 201
         
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+@app.route('/markets/<market_id>/trades', methods=['GET'])
+def get_market_trades(market_id):
+    """Get trades for a market with comments"""
+    try:
+        limit = request.args.get('limit', 50, type=int)
+        trades = pm.get_trades_with_comments(market_id, limit)
+        return jsonify(trades)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
+@app.route('/trades/recent', methods=['GET'])
+def get_recent_trades():
+    """Get recent trades across all markets"""
+    try:
+        limit = request.args.get('limit', 50, type=int)
+        trades = pm.get_trades_with_comments(limit=limit)
+        return jsonify(trades)
     except Exception as e:
         return jsonify({'error': str(e)}), 400
 
@@ -215,6 +246,54 @@ def modify_user_balance(user_id):
         
     except Exception as e:
         return jsonify({'error': str(e)}), 400
+
+@app.route('/traders/launch', methods=['POST'])
+def launch_traders():
+    """Launch LLM traders in a background thread"""
+    data = request.json
+    market_id = data['market_id']
+    num_traders = data.get('num_traders', 3)
+    rounds = data.get('rounds', 1)
+    enable_search = data.get('enable_search', True)
+    
+    # Import the appropriate trader module
+    if enable_search:
+        from llm_trader_with_search import run_llm_traders_with_search
+        
+        # Run in a thread to not block the API
+        import threading
+        thread = threading.Thread(
+            target=run_llm_traders_with_search,
+            args=(market_id, num_traders, rounds, enable_search)
+        )
+        thread.daemon = True
+        thread.start()
+        
+        return jsonify({
+            'status': 'launched',
+            'market_id': market_id,
+            'num_traders': num_traders,
+            'rounds': rounds,
+            'search_enabled': enable_search
+        })
+    else:
+        from llm_trader import run_llm_traders
+        
+        import threading
+        thread = threading.Thread(
+            target=run_llm_traders,
+            args=(market_id, num_traders, rounds)
+        )
+        thread.daemon = True
+        thread.start()
+        
+        return jsonify({
+            'status': 'launched',
+            'market_id': market_id,
+            'num_traders': num_traders,
+            'rounds': rounds,
+            'search_enabled': False
+        })
 
 @app.route('/simulate', methods=['POST'])
 def simulate_market():
