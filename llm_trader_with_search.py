@@ -7,12 +7,23 @@ from datetime import datetime
 import llm
 import random
 import time
+import os
+from dotenv import load_dotenv
 from exa_py import Exa
+
+# Load environment variables
+load_dotenv()
 
 BASE_URL = "http://localhost:5000"
 
-# Initialize Exa client
-exa = Exa(api_key="03a94a17-e062-41bb-9f42-3be88c611df4")
+# Initialize Exa client with environment variable
+exa_api_key = os.getenv("EXA_API_KEY")
+if not exa_api_key:
+    print("Warning: EXA_API_KEY not found in environment variables")
+    print("Web search will be disabled. Set EXA_API_KEY to enable.")
+    exa = None
+else:
+    exa = Exa(api_key=exa_api_key)
 
 class LLMTraderWithSearch:
     def __init__(self, model="openrouter/anthropic/claude-3.5-sonnet", name=None, strategy="balanced", use_search=True):
@@ -41,7 +52,7 @@ class LLMTraderWithSearch:
     
     def search_for_context(self, question):
         """Search for relevant information about the market question"""
-        if not self.use_search:
+        if not self.use_search or not exa:
             return None
             
         try:

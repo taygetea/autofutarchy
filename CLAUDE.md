@@ -147,6 +147,21 @@ The SQLite database (`prediction_market.db`) contains:
 - Exa search requires EXA_API_KEY for web-enabled traders
 - All API responses are JSON
 
+### Environment Setup
+
+1. Copy `.env.example` to `.env`:
+   ```bash
+   cp .env.example .env
+   ```
+
+2. Fill in your API keys in `.env`:
+   ```
+   OPENROUTER_API_KEY=your_openrouter_key_here
+   EXA_API_KEY=your_exa_key_here
+   ```
+
+3. The `.env` file is gitignored for security
+
 ## Working with LLM Traders
 
 The LLM traders use a structured approach:
