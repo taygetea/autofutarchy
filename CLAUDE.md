@@ -184,13 +184,50 @@ When modifying trader behavior, key files are:
 
 ## Bitcoin Price Context
 
-The system was tested when Bitcoin was already over $100k (January 2025). This led to interesting market corrections when LLMs learned current prices through web search.
+The system was tested when Bitcoin was already over $100k (July 2025). This led to interesting market corrections when LLMs learned current prices through web search.
 
 ## Model List (from orchestrator.py)
 
-Current models available via OpenRouter (January 2025):
+Current models available via OpenRouter (July 2025):
 - `openrouter/anthropic/claude-sonnet-4`
 - `openrouter/openai/o4-mini`
 - `openrouter/google/gemini-2.5-flash`
 - `openrouter/deepseek/deepseek-r1-0528`
 - `openrouter/moonshotai/kimi-k2`
+
+## Recent Development - LLM Trader Reasoning Display
+
+### Session Summary (July 2025)
+
+We successfully implemented a public trade feed with LLM reasoning, similar to Manifold Markets:
+
+1. **Database Schema Updates**:
+   - Added `trade_comments` table to store reasoning, model_name, strategy, confidence
+   - Added methods to save and retrieve trades with comments
+   - Joined trades with users and comments for display
+
+2. **LLM Trader Modifications**:
+   - Modified `execute_trade()` to accept and pass analysis/reasoning
+   - Updated both `llm_trader.py` and `llm_trader_with_search.py`
+   - Reasoning now flows from analysis → trade execution → database → UI
+
+3. **API Enhancements**:
+   - `/trades` endpoint now accepts reasoning data
+   - Added `/markets/{id}/trades` to get trades with comments
+   - Added `/trades/recent` for cross-market activity
+   - Added `/traders/launch` to start traders in background threads
+
+4. **Streamlit UI Updates**:
+   - Trade feeds now show 🤖/👤 icons, reasoning, confidence, strategy
+   - LLM Trader tab has working "Launch" button (no more copy-paste commands!)
+   - Added refresh buttons (🔄) and auto-refresh option in sidebar
+   - Shows recent LLM trader activity across all markets
+
+5. **Example from Testing**:
+   - Market 74: "Will PLA Rocket Force launch ordnance at US/allied assets before 2033?"
+   - LLMs debated: Gemini (aggressive) bought YES citing capabilities/timeframe
+   - Claude & O4 (conservative/balanced) bought NO citing rationality/low probability
+   - Market moved from ~40% → 23% YES as NO buyers dominated
+
+### Key Achievement
+The system now provides transparent reasoning for every LLM trade, making markets more informative and engaging. Users can see not just what AI traders do, but why they do it - creating a richer prediction market experience where trades tell stories.
