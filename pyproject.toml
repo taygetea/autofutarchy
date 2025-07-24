@@ -13,6 +13,7 @@ dependencies = [
     "python-dateutil>=2.8.2",
     "requests>=2.31.0",
     "llm",
+    "llm-openrouter",
     "exa-py",
     "streamlit>=1.40.2",
     "pandas>=2.2.3",
