@@ -1,3 +1,7 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "autofutarchy"
 version = "0.1.0"
@@ -22,3 +26,6 @@ dev = [
     "black>=23.0",
     "ruff>=0.1.0",
 ]
+
+[tool.setuptools]
+py-modules = ["market", "database", "app", "cli", "streamlit_app", "llm_trader", "llm_trader_with_search", "main"]
