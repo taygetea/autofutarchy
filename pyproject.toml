@@ -1,0 +1,23 @@
+[project]
+name = "autofutarchy"
+version = "0.1.0"
+description = "A prediction market system with LLM traders and web interface"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "flask>=3.0.0",
+    "python-dateutil>=2.8.2",
+    "requests>=2.31.0",
+    "llm",
+    "exa-py",
+    "streamlit>=1.40.2",
+    "pandas>=2.2.3",
+    "plotly>=5.24.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "black>=23.0",
+    "ruff>=0.1.0",
+]
